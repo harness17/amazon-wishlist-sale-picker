@@ -33,7 +33,10 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "amazon-wishlist-sale-picker@harness"
+      "id": "amazon-wishlist-sale-picker@harness",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }
