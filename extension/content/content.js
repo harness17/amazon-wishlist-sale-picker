@@ -173,7 +173,12 @@
     return (
       document.querySelector('#profile-list-name')?.closest('#wl-list-info') ||
       document.querySelector('#wl-list-info') ||
+      document.querySelector('#profile-list-name')?.parentElement ||
+      document.querySelector('[data-testid="wishlist-header"]') ||
       document.querySelector('#g-items')?.parentElement ||
+      document.querySelector('main') ||
+      document.querySelector('#a-page') ||
+      document.body ||
       null
     );
   }
@@ -220,7 +225,11 @@
         </select>
       </div>
     `;
-    target.appendChild(container);
+    if (target.id === 'wl-list-info' || target.querySelector?.('#profile-list-name')) {
+      target.insertAdjacentElement('afterend', container);
+    } else {
+      target.prepend(container);
+    }
 
     document.getElementById('wsp-toggle-btn').addEventListener('click', onToggleClick);
 
@@ -524,6 +533,7 @@
     const itemsContainer = document.querySelector('#g-items');
     if (!itemsContainer) {
       const bodyObs = new MutationObserver(() => {
+        injectControls();
         if (document.querySelector('#g-items')) {
           bodyObs.disconnect();
           watchItems();
@@ -692,6 +702,7 @@
 
   function init() {
     Promise.all([loadSettings(), loadLanguage()]).then(() => {
+      injectControls();
       watchItems();
     });
   }

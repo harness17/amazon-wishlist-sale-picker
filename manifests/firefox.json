@@ -19,9 +19,9 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.amazon.co.jp/hz/wishlist/ls/*",
-        "https://www.amazon.co.jp/hz/wishlist/genericItemsPage/*",
-        "https://www.amazon.co.jp/gp/registry/wishlist/*"
+        "https://www.amazon.co.jp/hz/wishlist/ls*",
+        "https://www.amazon.co.jp/hz/wishlist/genericItemsPage*",
+        "https://www.amazon.co.jp/gp/registry/wishlist*"
       ],
       "js": ["shared/detect.js", "shared/i18n.js", "content/content.js"],
       "css": ["content/content.css"],
