@@ -15,6 +15,15 @@ li[data-id].wsp-hidden {
   font-family: "Amazon Ember", Arial, sans-serif;
 }
 
+#wsp-controls.wsp-controls-floating {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483646;
+  width: min(420px, calc(100vw - 32px));
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+}
+
 .wsp-controls-row {
   display: flex;
   align-items: center;

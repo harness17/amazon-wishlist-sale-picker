@@ -2,8 +2,19 @@
   const STORAGE_KEY = 'wsp_settings';
 
   // detectSale / parsePrice / SALE_KEYWORDS は extension/shared/detect.js (manifest で先行読み込み) から取得
-  const { detectSale, SALE_KEYWORDS } = window.__WSP__;
-  const { LANGUAGE_KEY, createTranslator, getLanguage } = window.__WSP_I18N__;
+  const wspApi = globalThis.__WSP__ || window.__WSP__;
+  const i18nApi = globalThis.__WSP_I18N__ || window.__WSP_I18N__;
+  if (!wspApi || !i18nApi) {
+    console.warn('[WSP] shared scripts were not loaded', {
+      hasDetect: !!wspApi,
+      hasI18n: !!i18nApi,
+      href: location.href,
+    });
+    return;
+  }
+  console.info('[WSP] content script loaded', location.href);
+  const { detectSale } = wspApi;
+  const { LANGUAGE_KEY, createTranslator, getLanguage } = i18nApi;
   let t = createTranslator('ja');
 
   const STATE = {
@@ -228,6 +239,7 @@
     if (target.id === 'wl-list-info' || target.querySelector?.('#profile-list-name')) {
       target.insertAdjacentElement('afterend', container);
     } else {
+      container.classList.add('wsp-controls-floating');
       target.prepend(container);
     }
 
