@@ -27,27 +27,16 @@ Chrome / Firefox のストアには未公開です。手動でインストール
    ```bash
    git clone https://github.com/harness17/amazon-wishlist-sale-picker.git
    ```
-2. `.\scripts\package-release.ps1 -Target chrome` を実行
+2. `.\scripts\build-dev.ps1` を実行（拡張をビルド。コード変更のたびに実行）
 3. `chrome://extensions/` を開く
 4. 右上「デベロッパーモード」をオン
-5. 「パッケージ化されていない拡張機能を読み込む」→ `dist/chrome/amazon-wishlist-sale-picker-chrome-v0.5.1` を選択
+5. 「パッケージ化されていない拡張機能を読み込む」→ `dist/dev/chrome` を選択（パスは固定。以後は手順2の再実行 → 🔄 リロードで反映）
 
-Firefox で手動確認する場合は `.\scripts\package-release.ps1 -Target firefox` を実行し、`about:debugging#/runtime/this-firefox` から `dist/firefox/amazon-wishlist-sale-picker-firefox-v0.5.1/manifest.json` を一時的なアドオンとして読み込みます。
+Firefox は `.\scripts\build-dev.ps1 -Target all` を実行し、`about:debugging#/runtime/this-firefox` から `dist/dev/firefox/manifest.json` を一時的なアドオンとして読み込みます。
+
+> 開発用ロードはバージョン名のない固定パス `dist/dev/<browser>/` を使うため、版を上げてもフォルダを選び直す必要はありません。出力先 `dist/` は Git 管理外です。ストア提出用の版番号付きパッケージは `scripts/package-release.ps1` で別途生成します。
 
 ## 開発
-
-### 開発用ロード（バージョン非依存）
-
-開発中は `scripts/build-dev.ps1` でバージョン名のない固定フォルダ `dist/dev/<browser>/` に出力します。一度読み込めば、以後はリビルド → ブラウザの再読み込みボタンだけで反映され、バージョンごとのフォルダ選び直し（取り違え）が不要です。
-
-```powershell
-.\scripts\build-dev.ps1              # chrome のみ（既定）
-.\scripts\build-dev.ps1 -Target all  # chrome + firefox
-```
-
-- 初回のみ: `chrome://extensions/` →「パッケージ化されていない拡張機能を読み込む」→ `dist/dev/chrome` を選択
-- Firefox: `about:debugging#/runtime/this-firefox` から `dist/dev/firefox/manifest.json` を一時的なアドオンとして読み込む
-- 出力先 `dist/` は Git 管理外（ストア提出用パッケージは `package-release.ps1`）
 
 ### 回帰テスト
 
