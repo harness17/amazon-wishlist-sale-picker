@@ -21,7 +21,10 @@ amazon.com など海外 Amazon は対象外です。Amazon.co.jp を英語表示
 
 ## インストール
 
-Chrome / Firefox のストアには未公開です。手動でインストールしてください。
+- [Chrome Web Store](https://chromewebstore.google.com/detail/amazon-wishlist-sale-pick/hbjnpfdjifnmofkgadigphfamcnpgbaj)
+- [Firefox Add-ons](https://addons.mozilla.org/ja/firefox/addon/amazon-wishlist-sale-picker/)
+
+## 開発用の読み込み
 
 1. このリポジトリを clone またはダウンロード
    ```bash
