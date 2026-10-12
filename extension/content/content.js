@@ -391,6 +391,15 @@
     return currentCount > 0 ? currentCount : null;
   }
 
+  // Amazon は次ページ取得キーを input[name="lastEvaluatedKey"] としてページ断片ごとに追記し、
+  // 最終ページでは空値になる。末尾到達時は #endOfListMarker も追加される（初期表示時は存在しない）
+  function getListEndState() {
+    if (document.querySelector('#endOfListMarker')) return 'end';
+    const keys = document.querySelectorAll('#g-items input[name="lastEvaluatedKey"]');
+    if (keys.length === 0) return 'unknown';
+    return keys[keys.length - 1].value ? 'more' : 'end';
+  }
+
   function waitForNewItems(timeoutMs = 800, settleMs = 80) {
     return new Promise((resolve) => {
       const container = document.querySelector('#g-items');
@@ -435,42 +444,92 @@
   }
 
   async function loadAllItems(onProgress, opts = {}) {
-    const MAX_ITERATIONS = 80;
-    const STABLE_THRESHOLD = 2;
     // 可視タブでも初動に少し余裕を持たせる
     const newItemTimeout = opts.headless ? 1500 : 600;
     const newItemSettle = opts.headless ? 250 : 80;
+    // 「増加なし N 回」や反復回数上限で打ち切ると、次ページ取得が遅い・リストが長い場合に途中で終わるため、
+    // Amazon の末尾シグナル（getListEndState）で終了を確定し、増加なしの経過時間は保険としてのみ使う
+    const noGrowthTimeoutWithMore = 30000; // 続きがあると分かっている間は長めに粘る
+    const noGrowthTimeoutUnknown = opts.headless ? 20000 : 15000; // DOM 変更でシグナルが取れない場合
+    // background の scanList タイムアウト(300s)を超えると結果ごと失われるため、headless は余裕を残して打ち切る
+    const maxDuration = opts.headless ? 240000 : 300000;
 
     const countItems = () => getWishlistItems().length;
     let lastCount = countItems();
+    let startedAt = Date.now();
+    let lastGrowthAt = startedAt;
     let stableIterations = 0;
 
     onProgress?.(lastCount);
 
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
-      // 遅延ロードは可視状態でないと発火しないため、隠れていたら可視に戻るまで待つ
-      if (opts.headless) await waitUntilVisible();
-
-      const endMarker = document.querySelector('#endOfListMarker');
-      if (endMarker) {
-        endMarker.scrollIntoView({ block: 'end' });
-      } else {
-        window.scrollTo(0, document.documentElement.scrollHeight);
+    while (getListEndState() !== 'end' && Date.now() - startedAt < maxDuration) {
+      // 遅延ロードは可視状態でないと発火しないため、隠れていたら可視に戻るまで待つ。
+      // 非表示中の待ち時間は読み込み遅延ではないので、経過時間の計測から除外する
+      if (opts.headless) {
+        const hiddenFrom = Date.now();
+        await waitUntilVisible();
+        const hiddenMs = Date.now() - hiddenFrom;
+        startedAt += hiddenMs;
+        lastGrowthAt += hiddenMs;
       }
+
+      // 既に最下部にいると scrollTo しても scroll イベントが出ず遅延ロードが再発火しないため、
+      // 増加がなかった回は一度上に戻してから下へスクロールし直す
+      if (stableIterations > 0) {
+        window.scrollBy(0, -window.innerHeight);
+      }
+      window.scrollTo(0, document.documentElement.scrollHeight);
 
       await waitForNewItems(newItemTimeout, newItemSettle);
 
       const currentCount = countItems();
       onProgress?.(currentCount);
 
-      if (currentCount === lastCount) {
-        stableIterations++;
-        if (stableIterations >= STABLE_THRESHOLD) break;
-      } else {
+      if (currentCount !== lastCount) {
         stableIterations = 0;
         lastCount = currentCount;
+        lastGrowthAt = Date.now();
+        continue;
+      }
+
+      stableIterations++;
+      const limit = getListEndState() === 'more' ? noGrowthTimeoutWithMore : noGrowthTimeoutUnknown;
+      if (Date.now() - lastGrowthAt >= limit) {
+        console.warn('[WSP] loadAllItems stopped without reaching end of list', { count: currentCount });
+        break;
       }
     }
+
+    // 最終ページは末尾マーカーと空の lastEvaluatedKey が商品より先に挿入され、
+    // 残りの商品が約 1.3 秒遅れて届く（実測）。即終了すると末尾数件を取りこぼすため、追加が止まるまで待つ
+    if (getListEndState() === 'end') {
+      for (let i = 0; i < 5; i++) {
+        const before = countItems();
+        await waitForNewItems(3000, 300);
+        const after = countItems();
+        onProgress?.(after);
+        if (after === before) break;
+      }
+    }
+  }
+
+  /** 初期表示分の商品（または空リストの末尾マーカー）が描画されるまで待つ。 */
+  function waitForInitialItems(timeoutMs = 10000) {
+    const ready = () => getWishlistItems().length > 0 || !!document.querySelector('#endOfListMarker');
+    if (ready()) return Promise.resolve();
+    return new Promise((resolve) => {
+      const obs = new MutationObserver(() => {
+        if (ready()) finish();
+      });
+      // タイムアウトしても空リストの可能性があるため reject せず続行する
+      const timer = setTimeout(finish, timeoutMs);
+      function finish() {
+        obs.disconnect();
+        clearTimeout(timer);
+        resolve();
+      }
+      obs.observe(document.documentElement, { childList: true, subtree: true });
+    });
   }
 
   function updateUI() {
@@ -669,6 +728,8 @@
     if (headlessScanPromise) return headlessScanPromise;
     headlessScanPromise = (async () => {
       await waitForContainer();
+      // #g-items が出ても中身が未描画のまま全件読み込みを始めると 0 件で終了するため、初期表示分を待つ
+      await waitForInitialItems();
       // スキャン用ウィンドウに進捗オーバーレイを表示（次のリストへ遷移するまで出したまま）
       showOverlay();
       const totalEstimate = getTotalItemCount();
